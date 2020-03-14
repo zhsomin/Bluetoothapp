@@ -1,18 +1,28 @@
 package com.android.bluetoothapp;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.app.Activity;
+import android.app.ListActivity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
+import android.content.Intent;
 import android.os.Bundle;
+import android.text.TextUtils;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.UUID;
 
@@ -135,12 +145,135 @@ public class MainActivity extends AppCompatActivity {
             CONNECT_STATUS=true;
 
 
+
         }catch (IOException e){
             e.printStackTrace();
         }
 
     }
 
+    public void  cancleconnect(){
+        try {
+            mmSocket.close();
+            CONNECT_STATUS=false;
+        }catch (IOException e){
+            e.printStackTrace();
+        }
+
+    }
+  //=======================================================================================
+     public  void  cancelconnect(){
+        try {
+            mmSocket.close();
+            CONNECT_STATUS=false;
+        }catch (IOException e){
+            e.printStackTrace();
+        }
+     }
+
+
+
+
+
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.main,menu);
+        return true;
+    }
+
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        switch (item.getItemId()){
+            case R.id.open:
+                if (!bluetoothAdapter.isEnabled()){
+                    Intent enableIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                    startActivityForResult( enableIntent,REQUEST_BT);
+                }else {
+                    Toast.makeText(MainActivity.this, "蓝牙已打开", Toast.LENGTH_SHORT)
+                            .show();
+                }
+                break;
+
+            case R.id.scan:
+                if (!bluetoothAdapter.isEnabled()){
+                    Toast.makeText(MainActivity.this, "未打开蓝牙", Toast.LENGTH_SHORT)
+                            .show();
+                }
+                else {
+                    Intent scanIntent=new Intent(MainActivity.this, ListView.class);
+                    startActivityForResult(scanIntent,REQUEST_BT);
+                }
+                break;
+
+            case R.id.disconnect:
+                if (!CONNECT_STATUS) {
+                    Toast.makeText(MainActivity.this, "无连接", Toast.LENGTH_SHORT)
+                            .show();
+                } else {
+                    Toast.makeText(MainActivity.this, "已断开连接", Toast.LENGTH_SHORT)
+                            .show();
+                    cancelconnect();
+                }
+                break;
+
+        }
+        return super.onOptionsItemSelected(item);
+    }
+//===================================================================================
+
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode==REQUEST_CONNECT_DEVICE){
+            if (requestCode== Activity.RESULT_OK){
+                String address = data.getExtras().getString(
+                        ListActivity.EXTRA_DEVICE_ADDRESS, "");
+
+                if (!TextUtils.isEmpty(address)){
+                    BluetoothDevice device=bluetoothAdapter.getRemoteDevice(address);
+                    ConThread(device);
+                }
+            }
+        }
+    }
+    private  class ReceiveData extends Thread{
+        InputStream mmInputStream;
+
+        private  ReceiveData(){
+            try {
+                mmInputStream=mmSocket.getInputStream();
+            }catch (IOException e){
+                e.printStackTrace();
+            }
+
+        }
+
+        @Override
+        public void run() {
+            int bytes;
+            byte[] buffer=new byte[256];
+            while (true){
+                try {
+                    bytes=mmInputStream.read(buffer);
+                    final  String readStr=new String(buffer,0,bytes);
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            tv_rx.setText(readStr);
+
+                        }
+                    });
+                }catch (IOException e){
+                    e.printStackTrace();
+                }
+
+            }
+
+        }
+    }
 
 
 }
